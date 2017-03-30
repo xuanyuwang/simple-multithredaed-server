@@ -68,7 +68,7 @@ RCB parseRequest(int fd, int sequence_number) {
         fin = fopen(req, "r"); /* open file */
         rcb.r_fsize = get_file_size(fin);
         fclose(fin);
-        rcb.r_quantum = rcb.r_fsize;
+        rcb.r_quantum = MAX_HTTP_SIZE;
     }
 
     return rcb;
@@ -100,12 +100,10 @@ void displayRCBList(){
     }
 }
 
-void processRCB_SJF(){
-    sglib_dllist_sort(&theRCBList);
-//    displayRCBList();
+void processRCB(RCB *rcb) {
     char *buffer;
-    dllist *tmp;
     int len;
+    int size;
 
     buffer = (char*)malloc(MAX_HTTP_SIZE);
     if(!buffer){
@@ -114,98 +112,91 @@ void processRCB_SJF(){
     }
 
     memset(buffer, 0, MAX_HTTP_SIZE);
-    for(tmp = sglib_dllist_get_first(theRCBList); tmp != NULL; tmp = tmp->ptr_to_next){
-        RCB rcb = tmp->rcb;
 
-        printf("Start to process request for %s\n", rcb.r_filename);
+    if (!rcb->r_filename) {
+        len = sprintf(buffer, "HTTP/1.1 400 Bad request\n\n");
+        write(rcb->r_fd, buffer, len);
+    } else {
+        rcb->r_fhandle = fopen(rcb->r_filename, "r");
+        if (!rcb->r_fhandle) {
+            len = sprintf(buffer, "HTTP/1.1 404 File not found\n\n");
+            write(rcb->r_fd, buffer, len);
+        } else {
+            len = sprintf(buffer, "HTTP/1.1 200 OK\n\n");
+            write(rcb->r_fd, buffer, len);
 
-        if(!rcb.r_filename){
-            len = sprintf(buffer, "HTTP/1.1 400 Bad request\n\n");
-            write(rcb.r_fd, buffer, len);
-        }else{
-            rcb.r_fhandle = fopen(rcb.r_filename, "r");
-            if(!rcb.r_fhandle){
-                len = sprintf(buffer, "HTTP/1.1 404 File not found\n\n");
-                write(rcb.r_fd, buffer, len);
-            }else{
-                len = sprintf(buffer, "HTTP/1.1 200 OK\n\n");
-                write(rcb.r_fd, buffer, len);
-
-                do{
-                    len = fread(buffer, 1, MAX_HTTP_SIZE, rcb.r_fhandle);
-                    if (len < 0){
-                        perror("Error while writing to client");
-                    }else if(len > 0){
-                        len = write(rcb.r_fd , buffer, len);
-                        if (len < 1){
-                            perror("Error while writing to client");
-                        }
-                    }
-                }while (len == MAX_HTTP_SIZE);
-                fclose(rcb.r_fhandle);
+            fseek(rcb->r_fhandle, -rcb->r_fsize, SEEK_END);
+            if (rcb->r_quantum < rcb->r_fsize) {
+                size = rcb->r_quantum;
+            } else {
+                size = rcb->r_fsize;
             }
-
+            do {
+                len = fread(buffer, 1, MAX_HTTP_SIZE, rcb->r_fhandle);
+                if (len < 0) {
+                    perror("Error while writing to client");
+                } else if (len > 0) {
+                    len = write(rcb->r_fd, buffer, len);
+                    if (len < 1) {
+                        perror("Error while writing to client");
+                    } else {
+                        size -= len;
+                    }
+                }
+            } while (size != 0);
+            rcb->r_fsize -= rcb->r_quantum;
+            if (rcb->r_fsize < 0) {
+                rcb->r_fsize = 0;
+                fclose(rcb->r_fhandle);
+            }
         }
-        close(rcb.r_fd);
-        sglib_dllist_delete(&theRCBList, tmp);
-        printf("Request %d\n completed", rcb.r_sequence_number);
     }
 }
 
-void processRCB_RR(){
-    char *buffer;
+void processRCB_SJF() {
+    sglib_dllist_sort(&theRCBList);
     dllist *tmp;
-    int len;
-    int ALL_SENT = 0;
 
-    buffer = (char*)malloc(MAX_HTTP_SIZE);
-    if(!buffer){
-        perror("Error while allocating memory");
-        abort();
+    for (tmp = sglib_dllist_get_first(theRCBList); tmp != NULL; tmp = tmp->ptr_to_next) {
+        printf("Start to process request for %s\n", tmp->rcb.r_filename);
+
+        do {
+            processRCB(&(tmp->rcb));
+        } while (tmp->rcb.r_fsize > 0);
+
+        close(tmp->rcb.r_fd);
+        sglib_dllist_delete(&theRCBList, tmp);
+        printf("Request %d completed\n", tmp->rcb.r_sequence_number);
     }
+}
 
-    memset(buffer, 0, MAX_HTTP_SIZE);
+void processRCB_RR(dllist *rcbdllist) {
+    dllist *tmp;
+    int ALL_SENT = 0;
+    int turn = 1;
+
     do{
+        printf("\n******* Turn: %d ******\n", turn);
+        turn++;
         ALL_SENT = 1;
-        for (tmp = sglib_dllist_get_first(theRCBList); tmp != NULL ; tmp = tmp->ptr_to_next){
+        for (tmp = sglib_dllist_get_first(rcbdllist); tmp != NULL; tmp = tmp->ptr_to_next) {
             printf("Start to process request for %s\n", tmp->rcb.r_filename);
-            if(!tmp->rcb.r_filename){
-                len = sprintf(buffer, "HTTP/1.1 400 BAD request\n\n");
-                write(tmp->rcb.r_fd, buffer, len);
-            }else{
-                tmp->rcb.r_fhandle = fopen(tmp->rcb.r_filename, "r");
-                if(!tmp->rcb.r_fhandle){
-                    len = sprintf(buffer, "HTTP/1.1 404 File not found\n\n");
-                    write(tmp->rcb.r_fd, buffer, len);
-                }else{
-                    len = sprintf(buffer, "HTTP/1.1 200 OK\n\n");
-                    write(tmp->rcb.r_fd, buffer, len);
-
-                    fseek(tmp->rcb.r_fhandle, -tmp->rcb.r_fsize, SEEK_END);
-                    len = fread(buffer, 1, MAX_HTTP_SIZE, tmp->rcb.r_fhandle);
-                    if (len < 0){
-                        perror("Error while writing to client");
-                    }else if(len > 0){
-                        len = write(tmp->rcb.r_fd, buffer, len);
-                        if (len < 1) {
-                            perror("Error while writing to client");
-                        }else{
-                            tmp->rcb.r_fsize -= len;
-                            if(tmp->rcb.r_fsize != 0){
-                                ALL_SENT = 0;
-                            }else{
-                                close(tmp->rcb.r_fd);
-                                sglib_dllist_delete(&theRCBList, tmp);
-                                printf("Request for %s completed\n", tmp->rcb.r_filename);
-                            }
-                        }
-                    }else if(len == 0){
-                        close(tmp->rcb.r_fd);
-                        sglib_dllist_delete(&theRCBList, tmp);
-                        printf("Request for %s completed\n", tmp->rcb.r_filename);
-                    }
-                }
+            processRCB(tmp);
+            if (tmp->rcb.r_fsize != 0) {
+                ALL_SENT = 0;
+            } else {
+                close(tmp->rcb.r_fd);
+                sglib_dllist_delete(&rcbdllist, tmp);
+                printf("Request for %s completed\n", tmp->rcb.r_filename);
             }
         }
     }while(ALL_SENT != 1);
+}
+
+void processRCB_MLFB(dllist *originalRCBList) {
+    dllist *highest;
+    dllist *middle;
+    dllist *low;
+
+
 }

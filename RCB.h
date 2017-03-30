@@ -38,6 +38,7 @@ void displayRCBList();
 
 void processRCB_SJF();
 
-void processRCB_RR();
+void processRCB_RR(dllist *);
 
+void processRCB_MLFB(dllist *);
 #endif

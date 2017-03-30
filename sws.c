@@ -109,6 +109,7 @@ int main(int argc, char **argv) {
     char *algo;
     static char SJF[4] = "SJF";
     static char RR[3] = "RR";
+    static char MLFB[5] = "MLFB";
 
     /* check for and process parameters
      */
@@ -141,7 +142,9 @@ int main(int argc, char **argv) {
         if(strcmp(algo, SJF) == 0){
             processRCB_SJF();
         }else if(strcmp(algo, RR) == 0){
-            processRCB_RR();
+            processRCB_RR(theRCBList);
+        } else if (strcmp(algo, MLFB) == 0) {
+            processRCB_MLFB(theRCBList);
         }
     }
 }
