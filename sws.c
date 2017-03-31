@@ -134,8 +134,8 @@ int main(int argc, char **argv) {
         printf("\nGot connections\n");
         for (fd = network_open(); fd >= 0; fd = network_open()) { /* get clients */
 //             serve_client(fd); /* process each client */
-            RCB rcb;
-            rcb = parseRequest(fd, sequence_counter);
+            RCB *rcb = (RCB *) malloc(sizeof(RCB));
+            parseRequest(rcb, fd, sequence_counter);
             insertRCB(rcb);
             sequence_counter++;
         }
@@ -146,5 +146,6 @@ int main(int argc, char **argv) {
         } else if (strcmp(algo, MLFB) == 0) {
             processRCB_MLFB(theRCBList);
         }
+        initialize();
     }
 }

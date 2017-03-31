@@ -26,15 +26,13 @@ typedef struct dllist {
 
 dllist *theRCBList;
 
-RCB parseRequest(int fd, int sequence_number);
+void parseRequest(RCB *rcb, int fd, int sequence_number);
 
 void initRCBList();
 
 void displayRCB(RCB);
 
-void insertRCB(RCB rcb);
-
-void displayRCBList();
+void insertRCB(RCB *rcb);
 
 void processRCB_SJF();
 

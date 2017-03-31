@@ -1,22 +1,6 @@
+unitSize = 1024 * 16
 ext = ".txt"
-content = """sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw
-sadl;fjl;sajlfjljasldjfjasl;jfdaskjdhlksfsjvnafhptqniuw"""
 for i in range(5):
-    with open(str(4 - i) + ext, 'w') as file:
-        file.write(str(i) + "start: " + i * 5 * content + " end")
+    with open(str(i) + ext, 'w') as file:
+        file.write("********************************\n")
+        file.write(str(i) * (2 ** i) * unitSize)
