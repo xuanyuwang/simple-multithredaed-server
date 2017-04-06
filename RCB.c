@@ -1,6 +1,6 @@
 #include <memory.h>
 #include "RCB.h"
-#include "sglib.h"
+//#include "sglib.h"
 
 #define MAX_HTTP_SIZE 8192 /* size of buffer to allocate */
 #define MIDDLE_QUEUE_QUANTUM 65536
@@ -13,12 +13,11 @@ SGLIB_DEFINE_DL_LIST_PROTOTYPES(dllist, DLLIST_COMPARATOR, ptr_to_previous,
 SGLIB_DEFINE_DL_LIST_FUNCTIONS(dllist, DLLIST_COMPARATOR, ptr_to_previous,
                                ptr_to_next);
 
-void insertRCB(RCB *rcb) {
-//    dllist *new;
-//    new = (dllist *) malloc(sizeof(dllist));
-//    new->rcb = rcb;
-//    sglib_dllist_add(&theRCBList, new);
-    sglib_dllist_add(&theRCBList, rcb);
+dllist* insertRCB(dllist *node, dllist* list) {
+    dllist* tail = sglib_dllist_get_last(list);
+    sglib_dllist_add_after(&tail, node);
+    list = sglib_dllist_get_first(tail);
+    return list;
 }
 
 /* parse the request and save it in a array */
@@ -89,7 +88,7 @@ void displayRCB(RCB rcb) {
     printf("file size = %d\n", rcb.r_fsize);
 }
 
-void initRCBList() { theRCBList = NULL; }
+void initDLList(dllist* head) { head = NULL; }
 
 void displayRCBList(dllist *head) {
     printf("*********************");
@@ -154,10 +153,10 @@ void processRCB(RCB *rcb) {
 }
 
 void processRCB_SJF() {
-    sglib_dllist_sort(&theRCBList);
+    sglib_dllist_sort(&readyQ);
     dllist *tmp;
 
-    for (tmp = sglib_dllist_get_first(theRCBList); tmp != NULL; tmp = tmp->ptr_to_next) {
+    for (tmp = sglib_dllist_get_first(readyQ); tmp != NULL; tmp = tmp->ptr_to_next) {
         printf("Start to process request for %s\n", tmp->rcb.r_filename);
 
         do {
@@ -165,7 +164,7 @@ void processRCB_SJF() {
         } while (tmp->rcb.r_fsize > 0);
 
         close(tmp->rcb.r_fd);
-        sglib_dllist_delete(&theRCBList, tmp);
+        sglib_dllist_delete(&readyQ, tmp);
         printf("Request %d completed\n", tmp->rcb.r_sequence_number);
         free(tmp);
     }
@@ -267,4 +266,19 @@ void processRCB_low(dllist *low) {
 
 void freeRCBList(dllist *node) {
 
+}
+
+int dllistLen(dllist* head){
+    return sglib_dllist_len(head);
+}
+
+dllist* getFirstRCB(dllist* list){
+    dllist* first = sglib_dllist_get_first(list);
+    return first;
+}
+
+dllist* deleteRCB(dllist* list, dllist* node){
+    sglib_dllist_delete(&list, node);
+    free(node);
+    return list;
 }

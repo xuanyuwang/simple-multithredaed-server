@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include "sglib.h"
 
 struct _request_control_block {
     int r_sequence_number;
@@ -24,18 +25,23 @@ typedef struct dllist {
     struct dllist *ptr_to_previous;
 } dllist;
 
-dllist *theRCBList;
+
+dllist *readyQ;
+dllist *workQ;
 
 void parseRequest(RCB *rcb, int fd, int sequence_number);
 
-void initRCBList();
-
+void initDLList(dllist*);
 void displayRCB(RCB);
-
-void insertRCB(RCB *rcb);
+void displayRCBList(dllist *head);
+dllist* insertRCB(dllist *node, dllist* list);
 
 void processRCB_SJF();
 
+int dllistLen(dllist* head);
+
+dllist* getFirstRCB(dllist* list);
+dllist* deleteRCB(dllist* list, dllist* node);
 void processRCB_RR(dllist *);
 
 void processRCB_MLFB(dllist *);

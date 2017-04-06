@@ -11,12 +11,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <semaphore.h>
+#include <pthread.h>
 
 #include "RCB.h"
 #include "network.h"
 
 #define MAX_HTTP_SIZE 8192 /* size of buffer to allocate */
+#define MAX_REQ 100
+
+/********* Global ***************/
 int sequence_counter;
+sem_t sem_full;
+sem_t sem_empty;
+sem_t sem_mutex;
+
+/*********** Function ************/
+
+void* work(void*);
 
 /* This function takes a file handle to a client, reads in the request,
  *    parses the request, and sends back the requested file.  If the
@@ -90,7 +102,11 @@ static void serve_client(int fd) {
 
 void initialize() {
     sequence_counter = 1;
-    initRCBList();
+    initDLList(workQ);
+    initDLList(readyQ);
+    sem_init(&sem_empty, 0, 100);
+    sem_init(&sem_full, 0, 0);
+    sem_init(&sem_mutex, 0, 1);
 }
 
 /* This function is where the program starts running.
@@ -107,45 +123,76 @@ int main(int argc, char **argv) {
     int port = -1; /* server port # */
     int fd;        /* client file descriptor */
     char *algo;
+    int numOfWorkers;
+    pthread_t * workers;
     static char SJF[4] = "SJF";
     static char RR[3] = "RR";
     static char MLFB[5] = "MLFB";
 
     /* check for and process parameters
      */
-    if ((argc < 2) || (sscanf(argv[1], "%d", &port) < 1)) {
+    if ((argc < 2) || (sscanf(argv[1], "%d", &port) < 1) || sscanf(argv[3], "%d", &numOfWorkers) < 1) {
         printf("usage: sms <port>\n");
         return 0;
     } else {
         sscanf(argv[1], "%d", &port);
         algo = argv[2];
-//        int strsize = strlen(argv[2]) + 1;
-//        algo = (char*)malloc(sizeof(char) * strsize);
-//        strcpy(algo, argv[2]);
-//        sscanf(argv[2], "%s", algo);
+        sscanf(argv[3], "%d", &numOfWorkers);
         sequence_counter = 1;
     }
 
+    /********************************************/
     network_init(port); /* init network module */
     initialize();
+    workers = (pthread_t*)malloc(sizeof(pthread_t) * MAX_REQ);
+    for (int i = 0; i < MAX_REQ; ++i) {
+        pthread_create(&workers[i], NULL, work, NULL);
+    }
 
+    /********************** Infinite loop ****************/
     for (;;) {        /* main loop */
         network_wait(); /* wait for clients */
+
         printf("\nGot connections\n");
         for (fd = network_open(); fd >= 0; fd = network_open()) { /* get clients */
+            sem_wait(&sem_empty);
+            sem_wait(&sem_mutex);
+
 //             serve_client(fd); /* process each client */
-            RCB *rcb = (RCB *) malloc(sizeof(RCB));
-            parseRequest(rcb, fd, sequence_counter);
-            insertRCB(rcb);
+            dllist* node = malloc(sizeof(dllist));
+            parseRequest(&node->rcb, fd, sequence_counter);
+
+            workQ = insertRCB(node, workQ);
             sequence_counter++;
+//            displayRCBList(workQ);
+            sem_post(&sem_mutex);
+            sem_post(&sem_full);
         }
-        if(strcmp(algo, SJF) == 0){
-            processRCB_SJF();
-        }else if(strcmp(algo, RR) == 0){
-            processRCB_RR(theRCBList);
-        } else if (strcmp(algo, MLFB) == 0) {
-            processRCB_MLFB(theRCBList);
-        }
-        initialize();
+//        if(strcmp(algo, SJF) == 0){
+//            processRCB_SJF();
+//        }else if(strcmp(algo, RR) == 0){
+//            processRCB_RR(readyQ);
+//        } else if (strcmp(algo, MLFB) == 0) {
+//            processRCB_MLFB(readyQ);
+//        }
+//        initialize();
     }
+}
+
+void* work(void* para){
+    sem_wait(&sem_full);
+    sem_wait(&sem_mutex);
+    /*******************/
+    if(dllistLen(workQ) > 0){
+        dllist* node = getFirstRCB(workQ);
+        workQ = deleteRCB(workQ, node);
+        printf("The work Queue:\n");
+        displayRCBList(workQ);
+        readyQ = insertRCB(node, readyQ);
+    }else if(dllistLen(workQ) == 0 && dllistLen(readyQ) != 0){
+
+    }
+    /*******************/
+    sem_post(&sem_mutex);
+    sem_post(&sem_empty);
 }
