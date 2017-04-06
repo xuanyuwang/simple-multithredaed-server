@@ -43,6 +43,9 @@ int main() {
         printf("%d ", l->i);
     }
     printf("\n");
+    l = the_list->ptr_to_previous;
+    printf("this l: %d\n", l->i);
+    printf("First: %d", sglib_dllist_get_first(l)->i);
 
     // print the list
 //    printf("With delete:\n");

@@ -153,10 +153,11 @@ void processRCB(RCB *rcb) {
 }
 
 void processRCB_SJF() {
+    int count = 1;
     sglib_dllist_sort(&readyQ);
     dllist *tmp;
 
-    for (tmp = sglib_dllist_get_first(readyQ); tmp != NULL; tmp = tmp->ptr_to_next) {
+    for (tmp = sglib_dllist_get_first(readyQ); tmp != NULL && count > 0; tmp = tmp->ptr_to_next) {
         printf("Start to process request for %s\n", tmp->rcb.r_filename);
 
         do {
@@ -167,6 +168,7 @@ void processRCB_SJF() {
         sglib_dllist_delete(&readyQ, tmp);
         printf("Request %d completed\n", tmp->rcb.r_sequence_number);
         free(tmp);
+        count--;
     }
 }
 
@@ -279,6 +281,6 @@ dllist* getFirstRCB(dllist* list){
 
 dllist* deleteRCB(dllist* list, dllist* node){
     sglib_dllist_delete(&list, node);
-    free(node);
-    return list;
+//    free(node);
+    return sglib_dllist_get_first(list);
 }

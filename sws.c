@@ -21,6 +21,9 @@
 #define MAX_REQ 100
 
 /********* Global ***************/
+static char SJF[4] = "SJF";
+static char RR[3] = "RR";
+static char MLFB[5] = "MLFB";
 int sequence_counter;
 sem_t sem_full;
 sem_t sem_empty;
@@ -28,7 +31,7 @@ sem_t sem_mutex;
 
 /*********** Function ************/
 
-void* work(void*);
+void *work(void *);
 
 /* This function takes a file handle to a client, reads in the request,
  *    parses the request, and sends back the requested file.  If the
@@ -124,10 +127,8 @@ int main(int argc, char **argv) {
     int fd;        /* client file descriptor */
     char *algo;
     int numOfWorkers;
-    pthread_t * workers;
-    static char SJF[4] = "SJF";
-    static char RR[3] = "RR";
-    static char MLFB[5] = "MLFB";
+    pthread_t *workers;
+
 
     /* check for and process parameters
      */
@@ -144,9 +145,9 @@ int main(int argc, char **argv) {
     /********************************************/
     network_init(port); /* init network module */
     initialize();
-    workers = (pthread_t*)malloc(sizeof(pthread_t) * MAX_REQ);
-    for (int i = 0; i < MAX_REQ; ++i) {
-        pthread_create(&workers[i], NULL, work, NULL);
+    workers = (pthread_t *) malloc(sizeof(pthread_t) * numOfWorkers);
+    for (int i = 0; i < numOfWorkers; ++i) {
+        pthread_create(&workers[i], NULL, work, (void *) algo);
     }
 
     /********************** Infinite loop ****************/
@@ -157,14 +158,15 @@ int main(int argc, char **argv) {
         for (fd = network_open(); fd >= 0; fd = network_open()) { /* get clients */
             sem_wait(&sem_empty);
             sem_wait(&sem_mutex);
-
+            /*******************/
 //             serve_client(fd); /* process each client */
-            dllist* node = malloc(sizeof(dllist));
+            dllist *node = malloc(sizeof(dllist));
             parseRequest(&node->rcb, fd, sequence_counter);
 
             workQ = insertRCB(node, workQ);
             sequence_counter++;
 //            displayRCBList(workQ);
+            /*******************/
             sem_post(&sem_mutex);
             sem_post(&sem_full);
         }
@@ -179,20 +181,41 @@ int main(int argc, char **argv) {
     }
 }
 
-void* work(void* para){
-    sem_wait(&sem_full);
-    sem_wait(&sem_mutex);
-    /*******************/
-    if(dllistLen(workQ) > 0){
-        dllist* node = getFirstRCB(workQ);
-        workQ = deleteRCB(workQ, node);
-        printf("The work Queue:\n");
-        displayRCBList(workQ);
-        readyQ = insertRCB(node, readyQ);
-    }else if(dllistLen(workQ) == 0 && dllistLen(readyQ) != 0){
+void *work(void *para) {
+    char *algo = (char *) para;
+    pthread_t dealRCB;
+    while (1) {
+        sem_wait(&sem_full);
+        sem_wait(&sem_mutex);
+        /*******************/
+        if (dllistLen(workQ) > 0) {
+            dllist *node = getFirstRCB(workQ);
+            workQ = deleteRCB(workQ, node);
+            readyQ = insertRCB(node, readyQ);
+            printf("The ready Queue:\n");
+            displayRCBList(readyQ);
+        }
+//        else if (dllistLen(workQ) == 0 && dllistLen(readyQ) != 0) {
+        if (dllistLen(readyQ) != 0) {
+            dllist *node;
+            if (strcmp(algo, SJF) == 0) {
+                processRCB_SJF();
+            } else if (strcmp(algo, RR) == 0) {
 
+            } else if (strcmp(algo, MLFB) == 0) {
+
+            }
+        }
+
+        /*******************/
+        sem_post(&sem_mutex);
+        sem_post(&sem_empty);
+
+
+        sem_wait(&sem_mutex);
+        /*******************/
+        /*******************/
+        sem_post(&sem_mutex);
     }
-    /*******************/
-    sem_post(&sem_mutex);
-    sem_post(&sem_empty);
+
 }
