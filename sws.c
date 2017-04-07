@@ -29,87 +29,19 @@ sem_t sem_full;
 sem_t sem_empty;
 sem_t sem_mutex;
 
-/*********** Function ************/
+/*********** Function Declaration ************/
 
 void *work(void *);
 
-/* This function takes a file handle to a client, reads in the request,
- *    parses the request, and sends back the requested file.  If the
- *    request is improper or the file is not available, the appropriate
- *    error is sent back.
- * Parameters:
- *             fd : the file descriptor to the client connection
- * Returns: None
- */
-static void serve_client(int fd) {
-    static char *buffer; /* request buffer */
-    char *req = NULL;    /* ptr to req file */
-    char *brk;           /* state used by strtok */
-    char *tmp;           /* error checking ptr */
-    FILE *fin;           /* input file handle */
-    int len;             /* length of data read */
 
-    if (!buffer) { /* 1st time, alloc buffer */
-        buffer = malloc(MAX_HTTP_SIZE);
-        if (!buffer) { /* error check */
-            perror("Error while allocating memory");
-            abort();
-        }
-    }
-
-    memset(buffer, 0, MAX_HTTP_SIZE);
-    if (read(fd, buffer, MAX_HTTP_SIZE) <= 0) { /* read req from client */
-        perror("Error while reading request");
-        abort();
-    }
-
-    /* standard requests are of the form
-     *   GET /foo/bar/qux.html HTTP/1.1
-     * We want the second token (the file path).
-     */
-    tmp = strtok_r(buffer, " ", &brk); /* parse request */
-    if (tmp && !strcmp("GET", tmp)) {
-        req = strtok_r(NULL, " ", &brk);
-    }
-    printf("req is: %s\n", req);
-
-    if (!req) { /* is req valid? */
-        len = sprintf(buffer, "HTTP/1.1 400 Bad request\n\n");
-        write(fd, buffer, len); /* if not, send err */
-    } else {                  /* if so, open file */
-        req++;                  /* skip leading / */
-        fin = fopen(req, "r");  /* open file */
-        if (!fin) {             /* check if successful */
-            len = sprintf(buffer, "HTTP/1.1 404 File not found\n\n");
-            write(fd, buffer, len);                       /* if not, send err */
-        } else {                                        /* if so, send file */
-            len = sprintf(buffer, "HTTP/1.1 200 OK\n\n"); /* send success code */
-            write(fd, buffer, len);
-
-            do {                                          /* loop, read & send file */
-                len = fread(buffer, 1, MAX_HTTP_SIZE, fin); /* read file chunk */
-                if (len < 0) {                              /* check for errors */
-                    perror("Error while writing to client");
-                } else if (len > 0) { /* if none, send chunk */
-                    len = write(fd, buffer, len);
-                    if (len < 1) { /* check for errors */
-                        perror("Error while writing to client");
-                    }
-                }
-            } while (len == MAX_HTTP_SIZE); /* the last chunk < 8192 */
-            fclose(fin);
-        }
-    }
-    close(fd); /* close client connectuin*/
-}
-
+/*********** Function Definition ************/
 void initialize() {
     sequence_counter = 1;
     initDLList(workQ);
     initDLList(readyQ);
     initDLList(middle);
     initDLList(low);
-    sem_init(&sem_empty, 0, 100);
+    sem_init(&sem_empty, 0, MAX_REQ);
     sem_init(&sem_full, 0, 0);
     sem_init(&sem_mutex, 0, 1);
 }
@@ -145,7 +77,7 @@ int main(int argc, char **argv) {
         sequence_counter = 1;
     }
 
-    /********************************************/
+    /**************** Initialization **********************/
     network_init(port); /* init network module */
     initialize();
     workers = (pthread_t *) malloc(sizeof(pthread_t) * numOfWorkers);
@@ -153,7 +85,7 @@ int main(int argc, char **argv) {
         pthread_create(&workers[i], NULL, work, (void *) algo);
     }
 
-    /********************** Infinite loop ****************/
+    /********************** Infinite main loop ****************/
     for (;;) {        /* main loop */
         network_wait(); /* wait for clients */
 
@@ -174,14 +106,6 @@ int main(int argc, char **argv) {
             sem_post(&sem_mutex);
             sem_post(&sem_full);
         }
-//        if(strcmp(algo, SJF) == 0){
-//            processRCB_SJF();
-//        }else if(strcmp(algo, RR) == 0){
-//            processRCB_RR(readyQ);
-//        } else if (strcmp(algo, MLFB) == 0) {
-//            processRCB_MLFB(readyQ);
-//        }
-//        initialize();
     }
 }
 
@@ -198,10 +122,7 @@ void *work(void *para) {
             readyQ = insertRCB(node, readyQ);
             printf("Reuqest for file %s admitted\n", node->rcb.r_filename);
             fflush(stdout);
-//            printf("The ready Queue:\n");
-//            displayRCBList(readyQ);
         }
-//        else if (dllistLen(workQ) == 0 && dllistLen(readyQ) != 0) {
         if (dllistLen(readyQ) != 0) {
             dllist *node;
             if (strcmp(algo, SJF) == 0) {
@@ -212,7 +133,6 @@ void *work(void *para) {
                 processRCB_MLFB(&readyQ);
             }
         }
-
         /*******************/
         sem_post(&sem_mutex);
         sem_post(&sem_empty);

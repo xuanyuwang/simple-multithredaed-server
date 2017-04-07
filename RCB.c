@@ -167,8 +167,8 @@ void processRCB_SJF() {
     dllist *tmp;
 
     for (tmp = sglib_dllist_get_first(readyQ); tmp != NULL && count > 0; tmp = tmp->ptr_to_next) {
-        printf("Start to process request for %s\n", tmp->rcb.r_filename);
-        fflush(stdout);
+//        printf("Start to process request for %s\n", tmp->rcb.r_filename);
+//        fflush(stdout);
 
         do {
             processRCB(&(tmp->rcb));
@@ -188,7 +188,7 @@ void processRCB_SJF() {
 void processRCB_RR(dllist **rcbdllist) {
     int originalLen = sglib_dllist_len(*rcbdllist);
     int afterLen;
-    displayRCBList(*rcbdllist);
+//    displayRCBList(*rcbdllist);
     dllist *tmp;
     int ALL_SENT = 0;
     int turn = 1;
@@ -224,7 +224,7 @@ void processRCB_RR(dllist **rcbdllist) {
     }while(ALL_SENT != 1);
     printf("After RR\n");
     fflush(stdout);
-    displayRCBList(*rcbdllist);
+//    displayRCBList(*rcbdllist);
 }
 
 void processRCB_MLFB(dllist **originalRCBList) {
@@ -237,8 +237,8 @@ void processRCB_MLFB(dllist **originalRCBList) {
     if (highest == NULL) {
         return;
     }
-    printf("Begin to process the highest priority queue\n");
-    fflush(stdout);
+//    printf("Begin to process the highest priority queue\n");
+//    fflush(stdout);
 //    displayRCBList(highest);
 
     for (tmp = sglib_dllist_get_first(*originalRCBList); tmp != NULL; tmp = tmp->ptr_to_next) {
@@ -282,7 +282,7 @@ void processRCB_middle(dllist **middle) {
     }
     printf("Begin to process the middle priority queue\n");
     fflush(stdout);
-    displayRCBList(*middle);
+//    displayRCBList(*middle);
     for (tmp = sglib_dllist_get_first(*middle); tmp != NULL; tmp = tmp->ptr_to_next) {
 #ifndef DEBUG
         processRCB(&tmp->rcb);
