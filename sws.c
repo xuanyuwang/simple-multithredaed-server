@@ -107,6 +107,8 @@ void initialize() {
     sequence_counter = 1;
     initDLList(workQ);
     initDLList(readyQ);
+    initDLList(middle);
+    initDLList(low);
     sem_init(&sem_empty, 0, 100);
     sem_init(&sem_full, 0, 0);
     sem_init(&sem_mutex, 0, 1);
@@ -192,8 +194,8 @@ void *work(void *para) {
             dllist *node = getFirstRCB(workQ);
             workQ = deleteRCB(workQ, node);
             readyQ = insertRCB(node, readyQ);
-            printf("The ready Queue:\n");
-            displayRCBList(readyQ);
+//            printf("The ready Queue:\n");
+//            displayRCBList(readyQ);
         }
 //        else if (dllistLen(workQ) == 0 && dllistLen(readyQ) != 0) {
         if (dllistLen(readyQ) != 0) {
@@ -201,21 +203,15 @@ void *work(void *para) {
             if (strcmp(algo, SJF) == 0) {
                 processRCB_SJF();
             } else if (strcmp(algo, RR) == 0) {
-
+                processRCB_RR(&readyQ);
             } else if (strcmp(algo, MLFB) == 0) {
-
+                processRCB_MLFB(&readyQ);
             }
         }
 
         /*******************/
         sem_post(&sem_mutex);
         sem_post(&sem_empty);
-
-
-        sem_wait(&sem_mutex);
-        /*******************/
-        /*******************/
-        sem_post(&sem_mutex);
     }
 
 }

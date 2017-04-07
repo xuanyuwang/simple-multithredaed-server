@@ -4,6 +4,7 @@
 
 #define MAX_HTTP_SIZE 8192 /* size of buffer to allocate */
 #define MIDDLE_QUEUE_QUANTUM 65536
+//#define DEBUG
 
 #define DLLIST_COMPARATOR(e1, e2) (e1->rcb.r_fsize - e2->rcb.r_fsize)
 
@@ -12,6 +13,7 @@ SGLIB_DEFINE_DL_LIST_PROTOTYPES(dllist, DLLIST_COMPARATOR, ptr_to_previous,
 
 SGLIB_DEFINE_DL_LIST_FUNCTIONS(dllist, DLLIST_COMPARATOR, ptr_to_previous,
                                ptr_to_next);
+
 
 dllist* insertRCB(dllist *node, dllist* list) {
     dllist* tail = sglib_dllist_get_last(list);
@@ -172,92 +174,123 @@ void processRCB_SJF() {
     }
 }
 
-void processRCB_RR(dllist *rcbdllist) {
-    displayRCBList(rcbdllist);
+void processRCB_RR(dllist **rcbdllist) {
+    int originalLen = sglib_dllist_len(*rcbdllist);
+    int afterLen;
+    displayRCBList(*rcbdllist);
     dllist *tmp;
     int ALL_SENT = 0;
     int turn = 1;
 
     do{
-        printf("\n******* Turn: %d ******\n", turn);
+//        printf("\n******* Turn: %d ******\n", turn);
         turn++;
         ALL_SENT = 1;
-        for (tmp = sglib_dllist_get_first(rcbdllist); tmp != NULL; tmp = tmp->ptr_to_next) {
-            printf("Start to process request for %s\n", tmp->rcb.r_filename);
-            processRCB(tmp);
+        for (tmp = sglib_dllist_get_first(*rcbdllist); tmp != NULL; tmp = tmp->ptr_to_next) {
+//            printf("Start to process request for %s\n", tmp->rcb.r_filename);
+#ifndef DEBUG
+            processRCB(&tmp->rcb);
+#endif
+#ifdef DEBUG
+            tmp->rcb.r_fsize -= tmp->rcb.r_quantum;
+            if(tmp->rcb.r_fsize < 0){
+                tmp->rcb.r_fsize = 0;
+            }
+#endif
             if (tmp->rcb.r_fsize != 0) {
                 ALL_SENT = 0;
             } else {
                 close(tmp->rcb.r_fd);
-                sglib_dllist_delete(&rcbdllist, tmp);
+                sglib_dllist_delete(rcbdllist, tmp);
                 printf("Request %d completed: %s\n", tmp->rcb.r_sequence_number, tmp->rcb.r_filename);
+                return;
 //                free(tmp);
             }
         }
     }while(ALL_SENT != 1);
     printf("After RR\n");
-    displayRCBList(rcbdllist);
+    displayRCBList(*rcbdllist);
 }
 
-void processRCB_MLFB(dllist *originalRCBList) {
+void processRCB_MLFB(dllist **originalRCBList) {
     dllist *highest = NULL;
-    dllist *middle = NULL;
+//    dllist *middle = NULL;
     dllist *tmp;
 
     // process the high priority queue
-    highest = originalRCBList;
+    highest = *originalRCBList;
     if (highest == NULL) {
         return;
     }
     printf("Begin to process the highest priority queue\n");
 //    displayRCBList(highest);
 
-    for (tmp = sglib_dllist_get_first(highest); tmp != NULL; tmp = tmp->ptr_to_next) {
+    for (tmp = sglib_dllist_get_first(*originalRCBList); tmp != NULL; tmp = tmp->ptr_to_next) {
+#ifndef DEBUG
         processRCB(&tmp->rcb);
+#endif
+#ifdef DEBUG
+        tmp->rcb.r_fsize -= tmp->rcb.r_quantum;
+            if(tmp->rcb.r_fsize < 0){
+                tmp->rcb.r_fsize = 0;
+            }
+#endif
+//        processRCB(&tmp->rcb);
         if (tmp->rcb.r_fsize == 0) {
             close(tmp->rcb.r_fd);
-            sglib_dllist_delete(&highest, tmp);
+            sglib_dllist_delete(originalRCBList, tmp);
             printf("Request %d completed: %s\n", tmp->rcb.r_sequence_number, tmp->rcb.r_filename);
+            return;
         } else {
             tmp->rcb.r_quantum = MIDDLE_QUEUE_QUANTUM;
             dllist *toMiddle = (dllist *) malloc(sizeof(dllist));
             toMiddle->rcb = tmp->rcb;
             sglib_dllist_add(&middle, toMiddle);
-            sglib_dllist_delete(&highest, tmp);
+            sglib_dllist_delete(originalRCBList, tmp);
 //            free(tmp);
         }
     }
 
-    processRCB_middle(middle);
+    processRCB_middle(&middle);
 }
 
-void processRCB_middle(dllist *middle) {
-    dllist *low = NULL;
+void processRCB_middle(dllist **middle) {
+//    dllist *low = NULL;
     dllist *tmp;
     // process the
     if (middle == NULL) {
         return;
     }
     printf("Begin to process the middle priority queue\n");
-    displayRCBList(middle);
-    for (tmp = sglib_dllist_get_first(middle); tmp != NULL; tmp = tmp->ptr_to_next) {
+    displayRCBList(*middle);
+    for (tmp = sglib_dllist_get_first(*middle); tmp != NULL; tmp = tmp->ptr_to_next) {
+#ifndef DEBUG
         processRCB(&tmp->rcb);
+#endif
+#ifdef DEBUG
+        tmp->rcb.r_fsize -= tmp->rcb.r_quantum;
+            if(tmp->rcb.r_fsize < 0){
+                tmp->rcb.r_fsize = 0;
+            }
+#endif
+//        processRCB(&tmp->rcb);
         if (tmp->rcb.r_fsize == 0) {
             close(tmp->rcb.r_fd);
-            sglib_dllist_delete(&middle, tmp);
+            sglib_dllist_delete(middle, tmp);
             printf("Request %d completed: %s\n", tmp->rcb.r_sequence_number, tmp->rcb.r_filename);
+            return;
         } else {
             dllist *toLow = (dllist *) malloc(sizeof(dllist));
             toLow->rcb = tmp->rcb;
             sglib_dllist_add(&low, toLow);
-            sglib_dllist_delete(&middle, tmp);
+            sglib_dllist_delete(middle, tmp);
             free(tmp);
         }
     }
-    processRCB_low(low);
+    processRCB_low(&low);
 }
 
-void processRCB_low(dllist *low) {
+void processRCB_low(dllist **low) {
     // process the low priority queue
     if (low == NULL) {
         return;

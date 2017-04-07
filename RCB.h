@@ -28,6 +28,8 @@ typedef struct dllist {
 
 dllist *readyQ;
 dllist *workQ;
+dllist* middle;
+dllist* low;
 
 void parseRequest(RCB *rcb, int fd, int sequence_number);
 
@@ -42,7 +44,7 @@ int dllistLen(dllist* head);
 
 dllist* getFirstRCB(dllist* list);
 dllist* deleteRCB(dllist* list, dllist* node);
-void processRCB_RR(dllist *);
+void processRCB_RR(dllist **);
 
-void processRCB_MLFB(dllist *);
+void processRCB_MLFB(dllist **);
 #endif
