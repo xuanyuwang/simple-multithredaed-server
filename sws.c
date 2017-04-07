@@ -113,29 +113,55 @@ void *work(void *para) {
     char *algo = (char *) para;
     pthread_t dealRCB;
     while (1) {
-        sem_wait(&sem_full);
-        sem_wait(&sem_mutex);
-        /*******************/
-        if (dllistLen(workQ) > 0) {
-            dllist *node = getFirstRCB(workQ);
-            workQ = deleteRCB(workQ, node);
-            readyQ = insertRCB(node, readyQ);
-            printf("Reuqest for file %s admitted\n", node->rcb.r_filename);
-            fflush(stdout);
-        }
-        if (dllistLen(readyQ) != 0) {
-            dllist *node;
-            if (strcmp(algo, SJF) == 0) {
-                processRCB_SJF();
-            } else if (strcmp(algo, RR) == 0) {
-                processRCB_RR(&readyQ);
-            } else if (strcmp(algo, MLFB) == 0) {
-                processRCB_MLFB(&readyQ);
+        if (strcmp(algo, MLFB) == 0) {
+            sem_wait(&sem_full);
+            sem_wait(&sem_mutex);
+
+            /*******************/
+            if (dllistLen(workQ) > 0) {
+                dllist *node = getFirstRCB(workQ);
+                workQ = deleteRCB(workQ, node);
+                readyQ = insertRCB(node, readyQ);
+                printf("Reuqest for file %s admitted\n", node->rcb.r_filename);
+                fflush(stdout);
             }
+            if (dllistLen(readyQ) != 0) {
+                dllist *node;
+                if (strcmp(algo, SJF) == 0) {
+                    processRCB_SJF();
+                } else if (strcmp(algo, RR) == 0) {
+                    processRCB_RR(&readyQ);
+                } else if (strcmp(algo, MLFB) == 0) {
+                    processRCB_MLFB(&readyQ);
+                }
+            }
+            /*******************/
+            sem_post(&sem_mutex);
+            sem_post(&sem_empty);
+        } else {
+            sem_wait(&sem_mutex);
+            /*******************/
+            if (dllistLen(workQ) > 0) {
+                dllist *node = getFirstRCB(workQ);
+                workQ = deleteRCB(workQ, node);
+                readyQ = insertRCB(node, readyQ);
+                printf("Reuqest for file %s admitted\n", node->rcb.r_filename);
+                fflush(stdout);
+            } else if (dllistLen(readyQ) != 0) {
+                dllist *node;
+                if (strcmp(algo, SJF) == 0) {
+                    processRCB_SJF();
+                } else if (strcmp(algo, RR) == 0) {
+                    processRCB_RR(&readyQ);
+                } else if (strcmp(algo, MLFB) == 0) {
+                    processRCB_MLFB(&readyQ);
+                }
+            }
+            /*******************/
+            sem_post(&sem_mutex);
+            sem_post(&sem_empty);
         }
-        /*******************/
-        sem_post(&sem_mutex);
-        sem_post(&sem_empty);
+
     }
 
 }
