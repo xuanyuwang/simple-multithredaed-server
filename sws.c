@@ -136,6 +136,7 @@ int main(int argc, char **argv) {
      */
     if ((argc < 2) || (sscanf(argv[1], "%d", &port) < 1) || sscanf(argv[3], "%d", &numOfWorkers) < 1) {
         printf("usage: sms <port>\n");
+        fflush(stdout);
         return 0;
     } else {
         sscanf(argv[1], "%d", &port);
@@ -157,6 +158,7 @@ int main(int argc, char **argv) {
         network_wait(); /* wait for clients */
 
         printf("\nGot connections\n");
+        fflush(stdout);
         for (fd = network_open(); fd >= 0; fd = network_open()) { /* get clients */
             sem_wait(&sem_empty);
             sem_wait(&sem_mutex);
@@ -194,6 +196,8 @@ void *work(void *para) {
             dllist *node = getFirstRCB(workQ);
             workQ = deleteRCB(workQ, node);
             readyQ = insertRCB(node, readyQ);
+            printf("Reuqest for file %s admitted\n", node->rcb.r_filename);
+            fflush(stdout);
 //            printf("The ready Queue:\n");
 //            displayRCBList(readyQ);
         }

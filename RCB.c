@@ -83,18 +83,23 @@ int get_file_size(FILE* fin) {
 
 void displayRCB(RCB rcb) {
     printf("\n");
+    fflush(stdout);
 //    printf("sequence number = %d\n", rcb.r_sequence_number);
     printf("file name = %s\n", rcb.r_filename);
+    fflush(stdout);
 //    printf("file descriptor = %d\n", rcb.r_fd);
 //    printf("quantum = %d\n", rcb.r_quantum);
     printf("file size = %d\n", rcb.r_fsize);
+    fflush(stdout);
 }
 
 void initDLList(dllist* head) { head = NULL; }
 
 void displayRCBList(dllist *head) {
     printf("*********************");
+    fflush(stdout);
     printf("\ndisplay the list\n");
+    fflush(stdout);
     dllist *l;
     for (l = sglib_dllist_get_first(head); l != NULL; l = l->ptr_to_next) {
         displayRCB(l->rcb);
@@ -142,6 +147,8 @@ void processRCB(RCB *rcb) {
                         perror("Error while writing to client");
                     } else {
                         size -= len;
+                        printf("Sent %d bytes of file %s\n", len, rcb->r_filename);
+                        fflush(stdout);
                     }
                 }
             } while (size != 0);
@@ -161,6 +168,7 @@ void processRCB_SJF() {
 
     for (tmp = sglib_dllist_get_first(readyQ); tmp != NULL && count > 0; tmp = tmp->ptr_to_next) {
         printf("Start to process request for %s\n", tmp->rcb.r_filename);
+        fflush(stdout);
 
         do {
             processRCB(&(tmp->rcb));
@@ -169,6 +177,9 @@ void processRCB_SJF() {
         close(tmp->rcb.r_fd);
         sglib_dllist_delete(&readyQ, tmp);
         printf("Request %d completed\n", tmp->rcb.r_sequence_number);
+        fflush(stdout);
+        printf("Request for %s completed\n", tmp->rcb.r_filename);
+        fflush(stdout);
         free(tmp);
         count--;
     }
@@ -202,13 +213,17 @@ void processRCB_RR(dllist **rcbdllist) {
             } else {
                 close(tmp->rcb.r_fd);
                 sglib_dllist_delete(rcbdllist, tmp);
-                printf("Request %d completed: %s\n", tmp->rcb.r_sequence_number, tmp->rcb.r_filename);
+                printf("Request %d completed.\n", tmp->rcb.r_sequence_number);
+                fflush(stdout);
+                printf("Request for %s completed.\n", tmp->rcb.r_filename);
+                fflush(stdout);
                 return;
 //                free(tmp);
             }
         }
     }while(ALL_SENT != 1);
     printf("After RR\n");
+    fflush(stdout);
     displayRCBList(*rcbdllist);
 }
 
@@ -223,6 +238,7 @@ void processRCB_MLFB(dllist **originalRCBList) {
         return;
     }
     printf("Begin to process the highest priority queue\n");
+    fflush(stdout);
 //    displayRCBList(highest);
 
     for (tmp = sglib_dllist_get_first(*originalRCBList); tmp != NULL; tmp = tmp->ptr_to_next) {
@@ -239,7 +255,10 @@ void processRCB_MLFB(dllist **originalRCBList) {
         if (tmp->rcb.r_fsize == 0) {
             close(tmp->rcb.r_fd);
             sglib_dllist_delete(originalRCBList, tmp);
-            printf("Request %d completed: %s\n", tmp->rcb.r_sequence_number, tmp->rcb.r_filename);
+            printf("Request %d completed.\n", tmp->rcb.r_sequence_number);
+            fflush(stdout);
+            printf("Request for %s completed.\n", tmp->rcb.r_filename);
+            fflush(stdout);
             return;
         } else {
             tmp->rcb.r_quantum = MIDDLE_QUEUE_QUANTUM;
@@ -262,6 +281,7 @@ void processRCB_middle(dllist **middle) {
         return;
     }
     printf("Begin to process the middle priority queue\n");
+    fflush(stdout);
     displayRCBList(*middle);
     for (tmp = sglib_dllist_get_first(*middle); tmp != NULL; tmp = tmp->ptr_to_next) {
 #ifndef DEBUG
@@ -277,7 +297,10 @@ void processRCB_middle(dllist **middle) {
         if (tmp->rcb.r_fsize == 0) {
             close(tmp->rcb.r_fd);
             sglib_dllist_delete(middle, tmp);
-            printf("Request %d completed: %s\n", tmp->rcb.r_sequence_number, tmp->rcb.r_filename);
+            printf("Request %d completed.\n", tmp->rcb.r_sequence_number);
+            fflush(stdout);
+            printf("Request for %s completed.\n", tmp->rcb.r_filename);
+            fflush(stdout);
             return;
         } else {
             dllist *toLow = (dllist *) malloc(sizeof(dllist));
@@ -296,6 +319,7 @@ void processRCB_low(dllist **low) {
         return;
     }
     printf("Begin to process the low priority queue\n");
+    fflush(stdout);
     processRCB_RR(low);
 }
 
