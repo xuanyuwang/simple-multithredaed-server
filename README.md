@@ -1,71 +1,40 @@
-# simple-multithredaed-server
+# Simple Multi-Threaded Server
 
-## 概述
+## ABSTRACT
 
-本项目将根据提供的简单服务器`sws`完成一个多线程调度web服务器。该服务器有以下功能：
+This project aims to build a Caching Multi-Threaded Schedulding Web Server. There are mainly three features in the server:
 
-- 调度(scheduling)。服务器以操作系统进程（process）的方式处理客户端的连接。
-将实现三个调度算法：
-  
-  + Shortest Job first
-  + Round Robin
-  + Multilevel Queues with Feedback
-- 多线程（Multithreading）。服务器有多个线程，并且实现对于调度服务的某种同步机制。
-- 缓存（Caching）。暂时不考虑
++ **Schedulding**. There will be three different scheduling algorithms which are **Shortest Job First, Round Robin,** and **Multileve Queues with Feedback**.
++ **Multi-Threading**.This feature is on top of the **Scheduling** feature.
++ **Cacheing**
 
-## Task 1: 调度
+As you can see, the point of this project is to play threads. 
 
-### 概览
+## BACKGROUND
 
-该模块的目标在于最小化连接的平均等待时间。服务器处理一个请求的时间取决于所请求的文件的大小：文件越大，时间越长。
+### THE WEB SERVER
 
-我们的服务器可以通过重复调用函数 `network_open()` 来获得当前所有在等待的连接。该函数返回一个连接的文件描述符。如果没有待处理的连接，该函数返回-1.
+A web server is indeed a program which can receive the requests sent by clients and then response the requests.
 
-由于服务器不是按照先来后到处理请求的，所以需要存储每个请求的状态。在这里我们将采用请求表（Request Table）来完成。请求表是一个请求控制块（Request Control Blocks）的数组。每个请求控制块（类似于进程控制块）会存储以下几部分信息：
+The crucial problem here is not how a server serve a request. However, it is how to handle many requests at the same time. It seem natural that a server should deal with many requests simultineously today. Otherwise, we will think a serve is clumsy even stupid.
 
-- 请求的序列号（从1开始）
-- 客户端的文件描述符（由函数`network_wait()`返回）
-- 所请求的文件的文件指针`FILE*`或者文件描述符
-- 文件剩余的待发送的字节数
-- 量子，一个请求所允许的最大的发送字节数
-- 其它的调度所需信息
+Basically, a server should have two modules. One of them should handle the networking part, while another process requests. Here, I use a provided network module which contains three functions:
 
-### 功能描述
++ **void network init(int port)**. This function will be called once when the web server starts up. It will bind the web server to the given port number and do other initialization works.
++ **void network wait()**. This function will put the web server to sleep until there is a available.
++ **int network open()**. This function opens a connection to the next waiting client and returns a file descriptor. Otherwaise, it returns -1.
 
-#### 接收两个命令行参数
+As I will build the web server based on the provided simple web server (sws), I want to make a simple description about sws. The `main` function in sws.c takes one argument from the command line which represent the port number the server will be binded to. After the `main` function is called, either it will wait for clients or connect to clients and process their request, infinitely.
 
-a. 第一个参数是一个非负整数，表示服务器所绑定的端口号。该功能已经在`sws`中实现。
+For each request, the server will receive it, parse it, send back an appropriate response, and then close the connection.
 
-b. 第二个参数制定调度算法。服务器最少有三种算法
-  - SJK(shortest Job First，最小任务优先)。
-  - RR(Round Robin)
-  - MLFB(Multilevel queues with Feedback)
+## PROJECT PLAN
 
-#### 初始化网络模块，并将全局序列计数器设置为1
+The project is divided into three parts:
 
-#### 进入无限main循环
-a. 检查是否有客户端等待连接，或者是否有请求等待处理
-b. 如果没有客户端在等待且没有待处理请求，则等待。
-c. 连接到每个客户端，并将请求给调度器
-d. 从调度器中获得下一个待处理的请求
-e. 处理请求
++ Implement the scheduling algorithms for one thread.
++ Add multi-thread mechanism.
++ Add caching mechanism.
 
-#### 客户端请求处理步骤
-1. 接收客户端的请求信息
-2. 解析请求消息，并抽取所请求文件路径
-3. 如果请求的格式有误或者所请求的文件不存在，返回一个错误信息并关闭连接
-4. 如果不符合3的情况，那么将
-    
-    1. 确定文件大小
-    2. 分配并初始化请求控制块。确保要设置序列号并增加全局序列计数器
-    3. 将请求控制块传给调度器，并添加到队列中
-    4. 返回效应状态，即`HTTP/1.1 200 OK\n\n`
 
-#### 从调度器返回的请求经过以下处理
 
-1. 发送给客户端请求的下一部分，即最小剩余字节数和量子
-2. 更新剩余的字节数
-3. 提醒调度器。调度器会做以下操作：
-
-    1. 如果剩余字节数是0（发送后），打印出`Request <seq> completed`。最后，关闭连接，关闭文件，释放请求控制块
-    2. 否则，将请求插入回队列。
