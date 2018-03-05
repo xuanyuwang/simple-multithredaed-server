@@ -25,9 +25,9 @@ static char SJF[4] = "SJF";
 static char RR[3] = "RR";
 static char MLFB[5] = "MLFB";
 int sequence_counter;
-sem_t sem_full;
-sem_t sem_empty;
-sem_t sem_mutex;
+sem_t sem_full; // Count the number of threads which can work.
+sem_t sem_empty; // How many request can be processed in the future.
+sem_t sem_mutex; // Binary semophor, a mutex
 
 /*********** Function Declaration ************/
 
@@ -80,7 +80,12 @@ int main(int argc, char **argv) {
     /**************** Initialization **********************/
     network_init(port); /* init network module */
     initialize();
+    // Before this line, there is only one thread in this process.
+    // Create many threads in the next line.
     workers = (pthread_t *) malloc(sizeof(pthread_t) * numOfWorkers);
+    // For each thread, let them start with function *work*. All threads will be blocked at the beginning
+    // of functiion *work*. Then, until there is a request, a thread will be woke up at the end of the following
+    // for-loop.
     for (int i = 0; i < numOfWorkers; ++i) {
         pthread_create(&workers[i], NULL, work, (void *) algo);
     }
